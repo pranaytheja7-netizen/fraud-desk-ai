@@ -25,14 +25,18 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 # -----------------------------------------------------------------------------
 
 ROOT = Path(__file__).resolve().parent
-
+DEFAULT_DATABASE_URL = (
+    "sqlite:////tmp/fraud_desk.db"
+    if os.getenv("VERCEL")
+    else "sqlite:///./data/fraud_desk.db"
+)
 
 class Settings(BaseSettings):
     app_name: str = "FRAUD DESK"
     environment: str = "development"
     host: str = "0.0.0.0"
     port: int = 8000
-    database_url: str = "sqlite:///./data/fraud_desk.db"
+    database_url: str = DEFAULT_DATABASE_URL
 
     hindsight_base_url: str = "https://api.hindsight.vectorize.io"
     hindsight_api_key: str = ""
@@ -65,8 +69,10 @@ def get_settings() -> Settings:
 
 settings = get_settings()
 
-# Ensure the default SQLite directory exists before SQLAlchemy opens the file.
-if settings.database_url.startswith("sqlite:///./"):
+# SQLite needs a writable directory on Vercel.
+if settings.database_url.startswith("sqlite:////tmp/"):
+    Path("/tmp").mkdir(parents=True, exist_ok=True)
+elif settings.database_url.startswith("sqlite:///./"):
     (ROOT / "data").mkdir(parents=True, exist_ok=True)
 
 connect_args = {"check_same_thread": False} if settings.database_url.startswith("sqlite") else {}
